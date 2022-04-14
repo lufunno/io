@@ -1,59 +1,124 @@
 const Pool = require("pg").Pool;
-const pool = new Pool({
-  user: "node",
-  host: "localhost",
-  database: "db",
-  password: "pass",
-  port: 5432
+require('dotenv').config();
+const client = new Pool({
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    host: process.env.DB_HOST,
+    port: 5432,
+    database:  process.env.DB_DATABASE
 });
 
-pool.connect(function(err) {
-  if (err) console.log(err + "Ooops");
-  else console.log("SERVER CONNECTED!");
-});
+client.connect();
+console.log("connected succesfully");
+//return ("connected succesfully");
 
-const createTable = () => {
-    pool.query( 'CREATE TABLE Visitors ( id SERIAL PRIMARY KEY, name VARCHAR(50), age INT, date  DATE, time TIME, assistor VARCHAR(50), comments VARCHAR(100))', (error, respond) => {
-        console.log(error, respond);
+function createTable(){
+    client.query((`CREATE TABLE IF NOT EXISTS Visitors(
+        ID SERIAL,
+        Name varchar(50),
+        Age int,
+        dateofvisit DATE,
+        timeOfVisit TIME,
+        assistedBy varchar(50),
+        comments varchar(100)
+    )`), (err, res) =>{
+        if(err){
+            throw err;
+        }
+        console.table(res.rows);
+    // return (res.rows);
+        client.end();
+    })
+}
+
+ createTable();
+
+function    addNewVisitor(fullname, Age, dateOfVisit, timeOfVisit, assistedBy, comments){
+    client.query(`INSERT INTO Visitors(Name, Age, dateOfVisit, timeOfVisit, assistedBy, comments)
+    VALUES($1,$2,$3,$4,$5,$6);`,[fullname, Age, dateOfVisit, timeOfVisit, assistedBy, comments], 
+    (err, res) => {
+        if(err){
+            throw err;
+        }
+         console.table(`Data Inserted Into Visitors Table` + '\n'+ res.rowCount);
+        // return (`Data Inserted Into Visitors Table` +  + '\n'+ res.rowCount)
     });
 }
 
-const addNewVisitor = (data) =>{
-    pool.query(`INSERT INTO Visitors(name, age, date, time, assistor, comments) VALUES ($1, $2, $3, $4, $5, $6)`,
-    [data.name, data.age, data.date, data.time, data.assistor, data.comments],
-    (error, respond) => {
-        console.log(error, respond);
+ addNewVisitor('shawn carter', 25, '2020-09-10', '16:01', 'thembi khwanazi', 'Services');
+ addNewVisitor('Lufuno mbedzi', 21, '2021-09-10', '16:01', 'johan carter', 'awesome');
+
+function listAllVisitors(input){
+    client.query(input, (err, res) =>{
+        if(err){
+            throw err;
+        }
+
+       // console.table(res.rows);
+       return (res.rows);
+    })
+}
+
+ listAllVisitors('SELECT Name, ID FROM Visitors;');
+
+function    deleteAVisitor(fullname){
+    client.query(`DELETE FROM Visitors WHERE Name = $1;`,[fullname] ,(err, res) => {
+        if(err){
+            throw err;
+        }
+       // console.log('deleted successfully' + res.rowCount);
+       return ('deleted successfully' + res.rowCount);
+    })
+}
+
+ //deleteAVisitor('shawn carter');
+
+function updateVisitor(id, newValue, column){
+    client.query(`UPDATE Visitors SET ${column} = $1 WHERE ID = $2`, [newValue, id], (err, res) => {
+        if(err){
+            throw err;
+        }
+      //  console.log('data updated successfully', res.rowCount);
+      return ('data updated successfully', res.rowCount)
     });
 }
 
-const listAllVisitors = () => {
-    pool.query( "SELECT DISTINCT ID, Name FROM Visitors", (error, respond) => {
-        console.log(error, respond);
+// updateVisitor(1, '12:32', 'timeOfVisit');
+
+function    viewVisitor(id){
+    client.query(`SELECT * FROM Visitors WHERE ID = $1`, [id], (err, res) => {
+        if(err){
+            throw err;
+        }
+     //   console.table(res.rows);
+     return(res.rows);
     });
 }
+ //viewVisitor(1);
 
-const deleteVisitor = (id) => {
-    pool.query( `DELETE FROM Visitors WHERE id = ${id}`, (error, respond) => {
-        console.log(error, respond);
-    });
+function    deleteAllVisitors(){
+    client.query(`DELETE FROM Visitors`, (err, res) => {
+        if(err){
+            throw err;
+        }
+        //console.log('Table cleared successfully', res.rows);
+        return ('Table cleared successfully', res.rows)
+    })
 }
 
-const updateVisitor = (data) => {
-    pool.query('UPDATE Visitors SET name=($1), age=($2), date=($3), time=($4), assistor=($5), comments=($6) WHERE id=($7)',
-    [data.name, data.age, data.date, data.time, data.assistant, data.comments, data.id],
-    (error, results) =>{
-    console.log(error, results);
-  });
+// deleteAllVisitors();
+
+function lastVisitor(input){
+    client.query(input, (err, res) =>{
+        if(err){
+            throw err;
+        }
+       // console.table(res.rows);
+       return (res.rows);
+    })
 }
 
-const viewVisitor = (id) => {
-    pool.query(`SELECT * FROM Visitors WHERE id = ${id}`, (error, respond) => {
-        console.log(error, respond);
-      });
-}
 
-const deleteAllVisitors = () => {
-    pool.query('DELETE FROM Visitors ', (error, respond) => {
-      console.log(error, respond);
-    });
-  };
+lastVisitor(`SELECT MAX( ID ) FROM Visitors;`)
+
+module.exports = { addNewVisitor, updateVisitor, deleteAVisitor, deleteAllVisitors, viewVisitor, listAllVisitors };
